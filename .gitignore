@@ -1,0 +1,30 @@
+# Ignore virtual environment files
+venv/
+env/
+.venv/
+
+# Ignore compiled Python files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore log files
+*.log
+
+# Ignore datasets, large files, and sensitive data
+data/
+nltk_data/
+*.csv
+*.json
+*.xlsx
+*.db
+*.sqlite
+*.zip
+
+# Ignore text files (if needed)
+*.txt
+
+# Ignore IDE/editor configuration files
+.vscode/
+.idea/
+*.swp
