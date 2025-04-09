@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import json
 
 def extract_job_info(url):
-    """Fetch job listing details from the given URL"""
+    """Fetch job listing details from the given URL and write them to a file"""
     
     # Fetch the web page
     headers = {"User-Agent": "Mozilla/5.0"}  
@@ -45,16 +45,26 @@ def extract_job_info(url):
     
     # Try extracting job title and description from HTML (fallback method)
     if not job_info.get("Job Title"):
-        title_tag = soup.find("h1")
+        title_tag = soup.find("h1", class_="t3")
         job_info["Job Title"] = title_tag.text.strip() if title_tag else "Unknown"
 
-    description_tag = soup.find("div", class_="job-description")  # Adjust based on the site
-    job_info["Description"] = description_tag.text.strip() if description_tag else "No description available"
+    # Extracting job description
+    description_tag = soup.find("div", class_="import-decoration")
+    job_info["Description"] = ""
     
-    # Print extracted job details
-    print("\nExtracted Job Details:")
-    for key, value in job_info.items():
-        print(f"{key}: {value}")
+    if description_tag:
+        # Get all text inside the description div
+        job_info["Description"] = description_tag.get_text(separator="\n", strip=True)
+    else:
+        job_info["Description"] = "No description available"
+    
+    # Write extracted job details to a text file
+    with open("job_details.txt", "w", encoding="utf-8") as file:
+        file.write("Extracted Job Details:\n")
+        for key, value in job_info.items():
+            file.write(f"{key}: {value}\n")
+    
+    print("Job details have been written to 'job_details.txt'.")
 
 # Run the script
 if __name__ == "__main__":
