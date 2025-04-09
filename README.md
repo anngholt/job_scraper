@@ -3,6 +3,8 @@
 
 A Python-based web scraper that extracts job details from job listing websites. For now only test version is working correctly. This tool fetches job titles, descriptions, companies, locations, and other relevant information from a given job URL. In the future I want this programm to scrap job listing websites and write everything to a database. 
 
+Recentry added write to file feature and pyhton script to read and analyse data from that file. Next step saving all it in a database with link to job description.
+
 ---
 
 ## 📌 Features
