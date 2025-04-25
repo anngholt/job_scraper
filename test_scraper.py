@@ -1,35 +1,46 @@
 import requests
 from bs4 import BeautifulSoup
 import json
+import time
+
+HEADERS = {"User-Agent": "Mozilla/5.0"}
+BASE_URL = "https://www.finn.no"
+
+def get_job_links(search_url):
+    """Extract job ad links from a FINN.no job search results page"""
+    response = requests.get(search_url, headers=HEADERS)
+    soup = BeautifulSoup(response.text, "html.parser")
+    
+    links = []
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        if "/job/fulltime/ad.html?" in href:
+            full_url = href if href.startswith("http") else BASE_URL + href
+            if full_url not in links:
+                links.append(full_url)
+    
+    return links
+
 
 def extract_job_info(url):
-    """Fetch job listing details from the given URL and write them to a file"""
-    
-    # Fetch the web page
-    headers = {"User-Agent": "Mozilla/5.0"}  
-    response = requests.get(url, headers=headers)
-    
+    """Fetch job listing details from a job ad URL"""
+    response = requests.get(url, headers=HEADERS)
     if response.status_code != 200:
-        print("Failed to retrieve the page.")
-        return
+        print(f"Failed to fetch {url}")
+        return None
 
     soup = BeautifulSoup(response.text, "html.parser")
     
-    # Try to find JSON data within a script tag
-    job_info = {}
-    script_tag = soup.find("script", {"type": "application/json"})  
-    
+    job_info = {"URL": url}
+    script_tag = soup.find("script", {"type": "application/json"})
+
     if script_tag:
         try:
-            json_data = json.loads(script_tag.string.strip())  # Parse JSON
-            config = json_data.get("config", {})
-            targeting = config.get("adServer", {}).get("gam", {}).get("targeting", [])
-            
-            # Convert targeting list into a dictionary
+            json_data = json.loads(script_tag.string.strip())
+            targeting = json_data.get("config", {}).get("adServer", {}).get("gam", {}).get("targeting", [])
             targeting_dict = {item["key"]: item["value"] for item in targeting if "key" in item}
-            
-            # Extract relevant job details
-            job_info = {
+
+            job_info.update({
                 "Job Title": targeting_dict.get("job_title", ["Unknown"])[0],
                 "Company": targeting_dict.get("company_name", ["Unknown"])[0],
                 "Industry": targeting_dict.get("industry", ["Unknown"]),
@@ -39,34 +50,38 @@ def extract_job_info(url):
                 "Working Language": targeting_dict.get("working_language", ["Unknown"])[0],
                 "Job Duration": targeting_dict.get("job_duration", ["Unknown"])[0],
                 "Job Positions": targeting_dict.get("job_positions", ["Unknown"])[0],
-            }
+            })
         except json.JSONDecodeError:
-            print("Failed to parse JSON data.")
-    
-    # Try extracting job title and description from HTML (fallback method)
+            pass
+
+    # Fallback: Extract title and description from HTML
     if not job_info.get("Job Title"):
         title_tag = soup.find("h1", class_="t3")
         job_info["Job Title"] = title_tag.text.strip() if title_tag else "Unknown"
 
-    # Extracting job description
-    description_tag = soup.find("div", class_="import-decoration")
-    job_info["Description"] = ""
-    
-    if description_tag:
-        # Get all text inside the description div
-        job_info["Description"] = description_tag.get_text(separator="\n", strip=True)
-    else:
-        job_info["Description"] = "No description available"
-    
-    # Write extracted job details to a text file
-    with open("job_details.txt", "w", encoding="utf-8") as file:
-        file.write("Extracted Job Details:\n")
-        for key, value in job_info.items():
-            file.write(f"{key}: {value}\n")
-    
-    print("Job details have been written to 'job_details.txt'.")
+    description_tag = soup.find("div", class_="import-decoration") or \
+                      soup.find("section", {"data-testid": "ad-description"})
 
-# Run the script
+    job_info["Description"] = description_tag.get_text(separator="\n", strip=True) if description_tag else "No description available"
+
+    return job_info
+
+
+def scrape_jobs_from_search_page(search_url, output_file="job_data.jsonl"):
+    job_links = get_job_links(search_url)
+    print(f"Found {len(job_links)} job links.")
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        for i, link in enumerate(job_links, 1):
+            print(f"[{i}/{len(job_links)}] Scraping: {link}")
+            job_info = extract_job_info(link)
+            if job_info:
+                f.write(json.dumps(job_info, ensure_ascii=False) + "\n")
+            time.sleep(1)  # Be polite: avoid overloading the server
+
+    print(f"Done! Data saved to {output_file}")
+
+
 if __name__ == "__main__":
-    job_url = input("Enter the job listing URL: ")
-    extract_job_info(job_url)
+    search_page = input("Enter FINN.no search page URL: ")
+    scrape_jobs_from_search_page(search_page)
