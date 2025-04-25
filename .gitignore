@@ -20,6 +20,8 @@ nltk_data/
 *.db
 *.sqlite
 *.zip
+*.jsonl
+
 
 # Ignore text files (if needed)
 *.txt
